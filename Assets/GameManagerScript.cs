@@ -72,7 +72,7 @@ public class GameManagerScript : MonoBehaviour
             //playerIndex+1のインデックスの物と交換するので、
             //playerIndex-1よりさらに小さいインデックスの時
             //のみ交換処理を行う
-            if (playerIndex < map.Length - 1)
+            if (playerIndex < map.Length + 1)
             {
                 map[playerIndex - 1] = 1;
                 map[playerIndex] = 0;
