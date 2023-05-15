@@ -1,137 +1,159 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEditor.Timeline;
 using UnityEngine;
 
 public class GameManagerScript : MonoBehaviour
 {
-
+  
+    public GameObject playerPrefab;
+    public GameObject boxPrefab;
     //配列の宣言
-    int[] map;
+    int[,] map;
+    GameObject[,] field;
 
     void PrintArray()
     {
-        string debugText = "";
-        for (int i = 0; i < map.Length; i++)
-        {
-            debugText += map[i].ToString() + ",";
-        }
-        Debug.Log(debugText);
+        //string debugText = "";
+        //for (int i = 0; i < map.Length; i++)
+        //{
+        //    debugText += map[i].ToString() + ",";
+        //}
+        //Debug.Log(debugText);
     }
     // Start is called before the first frame update
 
-    int GetPlayerIndex()
+    Vector2Int GetPlayerIndex()
     {
-        for (int i = 0; i < map.Length; i++)
+        for (int y = 0; y < field.GetLength(0); y++)
         {
-            if (map[i] == 1)
+            for (int x = 0; x < field.GetLength(1); x++)
             {
-                return i;
+                if (field[y, x] == null) { continue; }
+                if (field[y, x].tag == "Player") { return new Vector2Int(x, y); }
             }
         }
-        return -1;
+        return new Vector2Int(-1, -1);
     }
 
-    bool MoveNumber(int number, int moveFrom, int moveTo)
+    bool MoveNumber(string tag, Vector2Int moveFrom, Vector2Int moveTo)
     {
-        //移動先が範囲外なら移動不可
-        if (moveTo < 0 || moveTo >= map.Length)
+        if (moveTo.y < 0 || moveTo.y >= field.GetLength(0)) { return false; }
+        if (moveTo.x < 0 || moveTo.x >= field.GetLength(1)) { return false; }
+
+        if (field[moveTo.y, moveTo.x] != null && field[moveTo.y, moveTo.x].tag == "Box")
         {
-            return false;
-        }
-        //移動先に２が居たら
-        if (map[moveTo] == 2)
-        {
-            //どの方向へ移動するかを算出
-            int velocity = moveTo - moveFrom;
-            //プレイヤーの移動先から、さらに先へ２を移動させる
-            //箱の移動処理。MoveNumberメソッド内でMoveNumberメソッドを
-            //呼び、処理が再帰している。移動可不可をboolで記録
-            bool success = MoveNumber(2, moveTo, moveTo + velocity);
-            //もし箱が移動失敗したらプレイヤーの移動も失敗
+            Vector2Int velocity = moveTo - moveFrom;
+            bool success = MoveNumber(tag, moveTo, moveTo + velocity);
             if (!success) { return false; }
         }
-        //プレイヤー・箱関わらずの移動処理
-        map[moveTo] = number;
-        map[moveFrom] = 0;
+        field[moveFrom.y, moveFrom.x].transform.position =
+            new Vector3(moveTo.x, field.GetLength(0) - moveTo.y, 0);
+        field[moveTo.y, moveTo.x] = field[moveFrom.y, moveFrom.x];
+        field[moveFrom.y, moveFrom.x] = null;
         return true;
     }
 
     void Start()
     {
-        map = new int[] { 0, 0, 2, 1, 0, 0, 2, 2, 0, 0 };
+        ////Objectを中央にやるためのプログラム
+        //GameObject instance = Instantiate(
+        //    playerPrefab,
+        //    new Vector3(0, 0, 0),
+        //    Quaternion.identity
+        //    );
 
-        //Debug.Log("Hello World");
-        //for(int i = 0; i < map.Length; i++)
-        //{
-        //    Debug.Log(map[i]+",");
-        //}
+        map = new int[,] {
+            { 0,0,0,0,0},
+            { 0,0,1,0,0},
+            { 0,0,2,0,0},
+            { 0,2,0,2,0},
+            { 0,0,0,0,0},
+        };
+        field = new GameObject[
+            map.GetLength(0),
+            map.GetLength(1)
+        ];
+        for (int y = 0; y < map.GetLength(0); y++)
+        {
+            for (int x = 0; x < map.GetLength(1); x++)
+            {
+                if (map[y, x] == 1)
+                {
+                    field[y, x] = Instantiate(
+                        playerPrefab,
+                        new Vector3(x, map.GetLength(0) - y, 0),
+                        Quaternion.identity
+                        );
+                }
 
-        //追加。文字列の宣言と初期化
+            }
+        }
+        for (int y = 0; y < map.GetLength(0); y++)
+        {
+            for (int x = 0; x < map.GetLength(1); x++)
+            {
+                if (map[y, x] == 2)
+                {
+                    field[y, x] = Instantiate(
+                        boxPrefab,
+                        new Vector3(x, map.GetLength(0) - y, 0),
+                        Quaternion.identity
+                        );
+                }
 
+            }
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
-        //見つからなかった時の為に-1で初期化
-        int playerIndex = GetPlayerIndex();
+        //プレイヤーの位置の取得
+        Vector2Int playerMoveFrom = GetPlayerIndex();
+        Vector2Int playerMoveTo = playerMoveFrom + new Vector2Int(0, 0);
 
-        //デバックログの出力
-        //要素数はmap.Lengthで取得
-        for (int i = 0; i < map.Length; ++i)
-        {
-            if (map[i] == 1)
-            {
-                playerIndex = i;
-                break;
-            }
-        }
-        //Update is called once per frame
+        ////クリアしてないとき移動できる
+        //if (IsCleard() != true)
+        //{
+        //右キーを押したとき
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            //ここに移動処理をかく
-            //playerIndex+1のインデックスの物と交換するので、
-            //playerIndex-1よりさらに小さいインデックスの時
-            //のみ交換処理を行う
-
-            //if (playerIndex < map.Length - 1)
-            //{
-            //    map[playerIndex + 1] = 1;
-            //    map[playerIndex] = 0;
-            //    string debugText = "";
-            //    for (int i = 0; i < map.Length; i++)
-            //    {
-            //        //変更。文字列に結合していく
-            //        debugText += map[i].ToString() + ",";
-            //    }
-
-            //}
-            MoveNumber(1, playerIndex, playerIndex + 1);
-            PrintArray();
+            playerMoveTo = playerMoveFrom + new Vector2Int(1, 0);
+            //プレイヤーの移動
+            MoveNumber("Player", playerMoveFrom, playerMoveTo);
         }
-
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        //左キーを押したとき
+        else if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            //ここに移動処理をかく
-            //playerIndex+1のインデックスの物と交換するので、
-            //playerIndex-1よりさらに小さいインデックスの時
-            //のみ交換処理を行う
-            //if (playerIndex > 0)
-            //{
-            //    map[playerIndex - 1] = 1;
-            //    map[playerIndex] = 0;
-            //    string debugText = "";
-            //    for (int i = 0; i < map.Length; i++)
-            //    {
-            //        //変更。文字列に結合していく
-            //        debugText += map[i].ToString() + ",";
-            //    }
-
-
-            //}
-            MoveNumber(1, playerIndex, playerIndex - 1);
-            PrintArray();
+            playerMoveTo = playerMoveFrom + new Vector2Int(-1, 0);
+            //プレイヤーの移動
+            MoveNumber("Player", playerMoveFrom, playerMoveTo);
         }
+        //上キーを押したとき
+        else if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            playerMoveTo = playerMoveFrom + new Vector2Int(0, -1);
+            //プレイヤーの移動
+            MoveNumber("Player", playerMoveFrom, playerMoveTo);
+        }
+        //下キーを押したとき
+        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            playerMoveTo = playerMoveFrom + new Vector2Int(0, 1);
+            //プレイヤーの移動
+            MoveNumber("Player", playerMoveFrom, playerMoveTo);
+        }
+        //その他
+        else { }
+        //}
+        ////クリアした時
+        //else if (IsCleard())
+        //{
+        //    //ゲームオブジェクトのSetActiveメソッドを使い有効化
+        //    clearText.SetActive(true);
+        //}
     }
 }
+   
